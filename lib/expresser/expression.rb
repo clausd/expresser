@@ -5,7 +5,7 @@ module Expresser
   	def initialize(parent, name, args)
       @parent = parent
   		@name = name
-  		@args = args
+  		@args = args || []
   	end
 
     def express(&block)
@@ -40,13 +40,37 @@ module Expresser
       }
     end
 
-    # # find the top, serialize it
-    # def serialize
-    #   if self.parent
-    #     self.parent.serialize
-    #   else
-    #     self.to_hash
-    #   end
-    # end
+    def topdown(yielder = nil)
+      if yielder
+        yielder.yield(self)
+        self.args.each do |arg|
+          arg.topdown(yielder) if arg.is_a?(Expression)
+        end
+      else
+        Enumerator.new do |y|
+          y.yield(self)
+          self.args.each do |arg|
+            arg.topdown(y) if arg.is_a?(Expression)
+          end
+        end
+      end
+    end
+
+    def bottomup(yielder = nil)
+      if yielder
+        self.args.each do |arg|
+          arg.bottomup(yielder) if arg.is_a?(Expression)
+        end
+        yielder.yield(self)
+      else
+        Enumerator.new do |y|
+          self.args.each do |arg|
+            arg.bottomup(y) if arg.is_a?(Expression)
+          end
+          y.yield(self)
+        end
+      end
+    end
+
   end
 end
